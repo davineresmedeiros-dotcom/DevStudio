@@ -23,6 +23,7 @@ class ProjectEditorActivity : Activity() {
     private var packageName = ""
 
     private val components = JSONArray()
+    private var selectedIndex = -1
     private val green = Color.rgb(101, 230, 165)
     private val dark = Color.rgb(16, 24, 39)
     private val panel = Color.rgb(28, 39, 56)
@@ -193,6 +194,7 @@ class ProjectEditorActivity : Activity() {
         item.put("width", "match")
         item.put("height", "wrap")
         item.put("margin", "8")
+        item.put("alignment", "left")
         item.put("visible", "true")
 
         components.put(item)
@@ -226,7 +228,7 @@ class ProjectEditorActivity : Activity() {
                 }
 
                 "Imagem" -> TextView(this).apply {
-                    text = if (item.optString("imagePath").isBlank())
+                    this.text = if (item.optString("imagePath").isBlank())
                         "[ Imagem ]"
                     else "[ ${item.optString("imagePath")} ]"
                     gravity = Gravity.CENTER
@@ -277,24 +279,51 @@ class ProjectEditorActivity : Activity() {
                     )
                 }
 
-                else -> View(this).apply {
-                    setBackgroundColor(Color.TRANSPARENT)
-                }
+                else -> View(this)
             }
 
             view.visibility = if (item.optString("visible") == "false")
                 View.GONE else View.VISIBLE
 
+            if (view is TextView) {
+                view.gravity = when (item.optString("alignment", "left")) {
+                    "center" -> Gravity.CENTER
+                    "right" -> Gravity.RIGHT or Gravity.CENTER_VERTICAL
+                    else -> Gravity.LEFT or Gravity.CENTER_VERTICAL
+                }
+            }
+
             val width = dimension(item.optString("width"), true)
             val height = dimension(item.optString("height"), false)
             val margin = item.optString("margin", "8").toIntOrNull() ?: 8
 
+            val wrapper = FrameLayout(this)
+            val selected = selectedIndex == index
+
+            wrapper.background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(Color.TRANSPARENT)
+                setStroke(
+                    dp(if (selected) 2 else 1),
+                    if (selected) green else Color.LTGRAY
+                )
+                cornerRadius = dp(5).toFloat()
+            }
+
+            wrapper.addView(
+                view,
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+            )
+
             val params = LinearLayout.LayoutParams(width, height)
             params.setMargins(dp(margin), dp(margin), dp(margin), dp(margin))
+            preview.addView(wrapper, params)
 
-            preview.addView(view, params)
-
-            view.setOnClickListener {
+            wrapper.setOnClickListener {
+                selectedIndex = index
+                renderPreview()
                 showComponentActions(index)
             }
         }
@@ -303,7 +332,6 @@ class ProjectEditorActivity : Activity() {
     private fun editComponent(index: Int) {
         val item = components.getJSONObject(index)
         val type = item.optString("type")
-
         val fields = linkedMapOf<String, EditText>()
 
         val form = LinearLayout(this).apply {
@@ -315,11 +343,11 @@ class ProjectEditorActivity : Activity() {
         scroll.addView(form)
 
         fun addField(label: String, key: String) {
-            val title = TextView(this).apply {
+            form.addView(TextView(this).apply {
                 text = label
                 setTextColor(Color.BLACK)
                 textSize = 14f
-            }
+            })
 
             val input = EditText(this).apply {
                 setText(item.optString(key, ""))
@@ -327,7 +355,6 @@ class ProjectEditorActivity : Activity() {
                 setSingleLine(true)
             }
 
-            form.addView(title)
             form.addView(input)
             fields[key] = input
         }
@@ -347,11 +374,11 @@ class ProjectEditorActivity : Activity() {
 
             "Imagem" -> {
                 addField("Caminho da imagem", "imagePath")
-                addField("Escala (FIT_CENTER, CENTER_CROP, FIT_XY)", "scaleType")
+                addField("Escala", "scaleType")
             }
 
             "Campo de texto" -> {
-                addField("Dica (hint)", "hint")
+                addField("Dica", "hint")
                 addField("Texto inicial", "text")
                 addField("Tipo de entrada", "inputType")
             }
@@ -366,6 +393,36 @@ class ProjectEditorActivity : Activity() {
             }
         }
 
+        val colorKeys = fields.keys.filter {
+            it == "textColor" || it == "backgroundColor"
+        }
+
+        for (key in colorKeys) {
+            val colors = arrayOf(
+                "Preto" to "#000000",
+                "Branco" to "#FFFFFF",
+                "Verde" to "#65E6A5",
+                "Azul" to "#2196F3",
+                "Vermelho" to "#F44336",
+                "Amarelo" to "#FFEB3B",
+                "Roxo" to "#9C27B0",
+                "Cinza" to "#9E9E9E"
+            )
+
+            val colorButton = Button(this).apply {
+                text = "Escolher cor"
+                setOnClickListener {
+                    AlertDialog.Builder(this@ProjectEditorActivity)
+                        .setTitle("Escolha uma cor")
+                        .setItems(colors.map { it.first }.toTypedArray()) { _, choice ->
+                            fields[key]?.setText(colors[choice].second)
+                        }
+                        .show()
+                }
+            }
+            form.addView(colorButton)
+        }
+
         form.addView(TextView(this).apply {
             text = "PROPRIEDADES GERAIS"
             setTextColor(Color.BLACK)
@@ -376,6 +433,7 @@ class ProjectEditorActivity : Activity() {
         addField("Largura (match ou valor em dp)", "width")
         addField("Altura (wrap ou valor em dp)", "height")
         addField("Margem (dp)", "margin")
+        addField("Alinhamento (left, center, right)", "alignment")
         addField("Visível? (true/false)", "visible")
 
         val dialog = AlertDialog.Builder(this)
