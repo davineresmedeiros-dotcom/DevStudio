@@ -319,7 +319,13 @@ class ProjectEditorActivity : Activity() {
 
             val params = LinearLayout.LayoutParams(width, height)
             params.setMargins(dp(margin), dp(margin), dp(margin), dp(margin))
-            preview.addView(wrapper, params)
+            val componentAlignment = item.optString("alignment", "left")
+        params.gravity = when (componentAlignment) {
+            "center" -> Gravity.CENTER_HORIZONTAL
+            "right" -> Gravity.END
+            else -> Gravity.START
+        }
+        preview.addView(wrapper, params)
 
             wrapper.setOnClickListener {
                 selectedIndex = index
@@ -620,12 +626,54 @@ class ProjectEditorActivity : Activity() {
     }
 
     private fun replaceComponents(updated: JSONArray) {
-        while (components.length() > 0) {
-            components.remove(components.length() - 1)
+        val oldLength = components.length()
+        val oldSelectedIndex = selectedIndex
+        val oldSelected = components.optJSONObject(oldSelectedIndex)
+
+        val updatedItems = (0 until updated.length()).map {
+            updated.optJSONObject(it)
         }
 
-        for (i in 0 until updated.length()) {
-            components.put(updated.getJSONObject(i))
+        while (components.length() > 0) {
+            components.remove(0)
+        }
+
+        updatedItems.forEach { item ->
+            if (item != null) components.put(item)
+        }
+
+        val newLength = components.length()
+
+        selectedIndex = when {
+            newLength == 0 -> -1
+
+            oldSelected == null -> {
+                oldSelectedIndex.coerceIn(0, newLength - 1)
+            }
+
+            else -> {
+                val preservedIndex = (0 until newLength).firstOrNull {
+                    components.optJSONObject(it) === oldSelected
+                }
+
+                when {
+                    // Ao duplicar, selecionar a cópia inserida logo após o original.
+                    newLength == oldLength + 1 &&
+                    preservedIndex == oldSelectedIndex &&
+                    oldSelectedIndex + 1 < newLength &&
+                    components.optJSONObject(oldSelectedIndex + 1)?.toString() == oldSelected.toString() ->
+                        oldSelectedIndex + 1
+
+                    // Ao mover, manter selecionado o mesmo objeto.
+                    preservedIndex != null -> preservedIndex
+
+                    // Ao excluir o selecionado, escolher o item mais próximo.
+                    newLength == oldLength - 1 ->
+                        oldSelectedIndex.coerceIn(0, newLength - 1)
+
+                    else -> oldSelectedIndex.coerceIn(0, newLength - 1)
+                }
+            }
         }
 
         saveLayout()
