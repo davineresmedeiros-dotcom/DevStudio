@@ -536,8 +536,8 @@ class ProjectEditorActivity : Activity() {
             setPadding(0, dp(16), 0, dp(8))
         })
 
-        addField("Largura (match ou valor em dp)", "width")
-        addField("Altura (wrap ou valor em dp)", "height")
+        addField("Largura (match_parent, wrap_content ou dp)", "width")
+        addField("Altura (match_parent, wrap_content ou dp)", "height")
         addField("Margem (dp)", "margin")
         addChoice("Alinhamento", "alignment", arrayOf("left", "center", "right"))
         addChoice("Visibilidade", "visible", arrayOf("true", "false"))
