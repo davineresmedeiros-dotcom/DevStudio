@@ -359,6 +359,50 @@ class ProjectEditorActivity : Activity() {
             fields[key] = input
         }
 
+        fun addChoice(label: String, key: String, options: Array<String>) {
+            form.addView(TextView(this).apply {
+                text = label
+                setTextColor(Color.BLACK)
+                textSize = 14f
+            })
+
+            val saved = item.optString(key, options[0])
+            val hiddenValue = EditText(this).apply {
+                setText(saved)
+                visibility = View.GONE
+            }
+            fields[key] = hiddenValue
+            form.addView(hiddenValue)
+
+            val spinner = Spinner(this)
+            spinner.adapter = ArrayAdapter(
+                this,
+                android.R.layout.simple_spinner_dropdown_item,
+                options
+            )
+
+            val selected = options.indexOf(saved).let {
+                if (it >= 0) it else 0
+            }
+            spinner.setSelection(selected)
+
+            spinner.onItemSelectedListener =
+                object : android.widget.AdapterView.OnItemSelectedListener {
+                    override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+
+                    override fun onItemSelected(
+                        parent: android.widget.AdapterView<*>?,
+                        view: View?,
+                        position: Int,
+                        id: Long
+                    ) {
+                        hiddenValue.setText(options[position])
+                    }
+                }
+
+            form.addView(spinner)
+        }
+
         when (type) {
             "Texto" -> {
                 addField("Conteúdo", "text")
@@ -374,7 +418,7 @@ class ProjectEditorActivity : Activity() {
 
             "Imagem" -> {
                 addField("Caminho da imagem", "imagePath")
-                addField("Escala", "scaleType")
+                addChoice("Escala da imagem", "scaleType", arrayOf("FIT_CENTER", "CENTER_CROP", "FIT_XY"))
             }
 
             "Campo de texto" -> {
@@ -385,7 +429,7 @@ class ProjectEditorActivity : Activity() {
 
             "Checkbox", "Radio Button", "Switch" -> {
                 addField("Texto", "text")
-                addField("Marcado? (true/false)", "checked")
+                addChoice("Estado inicial", "checked", arrayOf("true", "false"))
             }
 
             "Container", "Divisor" -> {
@@ -433,8 +477,8 @@ class ProjectEditorActivity : Activity() {
         addField("Largura (match ou valor em dp)", "width")
         addField("Altura (wrap ou valor em dp)", "height")
         addField("Margem (dp)", "margin")
-        addField("Alinhamento (left, center, right)", "alignment")
-        addField("Visível? (true/false)", "visible")
+        addChoice("Alinhamento", "alignment", arrayOf("left", "center", "right"))
+        addChoice("Visibilidade", "visible", arrayOf("true", "false"))
 
         val dialog = AlertDialog.Builder(this)
             .setTitle("Propriedades: $type")
