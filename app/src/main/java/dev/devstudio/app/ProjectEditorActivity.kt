@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.os.Bundle
 import android.graphics.Color
+import android.graphics.BitmapFactory
 import android.content.res.ColorStateList
 import android.view.Gravity
 import android.view.View
@@ -182,6 +183,7 @@ class ProjectEditorActivity : Activity() {
         item.put("textSize", "18")
         item.put("textColor", "#000000")
         item.put("backgroundColor", when (type) {
+            "Texto" -> "#00000000"
             "Container" -> "#EEEEEE"
             "Divisor" -> "#999999"
             else -> "#FFFFFF"
@@ -221,19 +223,46 @@ class ProjectEditorActivity : Activity() {
 
                 "Botão" -> Button(this).apply {
                     this.text = text
+                    textSize = item.optString("textSize", "14").toFloatOrNull() ?: 14f
                     setTextColor(parseColor(item.optString("textColor"), Color.BLACK))
                     backgroundTintList = ColorStateList.valueOf(
                         parseColor(item.optString("backgroundColor"), Color.LTGRAY)
                     )
                 }
 
-                "Imagem" -> TextView(this).apply {
-                    this.text = if (item.optString("imagePath").isBlank())
-                        "[ Imagem ]"
-                    else "[ ${item.optString("imagePath")} ]"
-                    gravity = Gravity.CENTER
-                    setTextColor(Color.DKGRAY)
-                    setBackgroundColor(Color.LTGRAY)
+                "Imagem" -> ImageView(this).apply {
+                    val imagePath = item.optString("imagePath")
+                    val direct = File(imagePath)
+                    val projectFile = File(projectFolder, imagePath)
+                    val assetFile = File(projectFolder, "assets/$imagePath")
+                    val imageFile = when {
+                        imagePath.isBlank() -> null
+                        direct.isFile -> direct
+                        projectFile.isFile -> projectFile
+                        assetFile.isFile -> assetFile
+                        else -> null
+                    }
+
+                    val bitmap = imageFile?.let {
+                        BitmapFactory.decodeFile(it.absolutePath)
+                    }
+
+                    if (bitmap != null) {
+                        setImageBitmap(bitmap)
+                    } else {
+                        setBackgroundColor(Color.LTGRAY)
+                        contentDescription = if (imagePath.isBlank())
+                            "Imagem não selecionada"
+                        else "Imagem não encontrada: $imagePath"
+                    }
+
+                    scaleType = try {
+                        ImageView.ScaleType.valueOf(
+                            item.optString("scaleType", "FIT_CENTER")
+                        )
+                    } catch (_: Exception) {
+                        ImageView.ScaleType.FIT_CENTER
+                    }
                 }
 
                 "Campo de texto" -> EditText(this).apply {
@@ -241,6 +270,15 @@ class ProjectEditorActivity : Activity() {
                     setText(text)
                     setTextColor(Color.BLACK)
                     setHintTextColor(Color.GRAY)
+                    inputType = when (item.optString("inputType", "Texto")) {
+                        "Número" -> android.text.InputType.TYPE_CLASS_NUMBER
+                        "Telefone" -> android.text.InputType.TYPE_CLASS_PHONE
+                        "Email" -> android.text.InputType.TYPE_CLASS_TEXT or
+                            android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+                        "Senha" -> android.text.InputType.TYPE_CLASS_TEXT or
+                            android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+                        else -> android.text.InputType.TYPE_CLASS_TEXT
+                    }
                 }
 
                 "Checkbox" -> CheckBox(this).apply {
@@ -277,6 +315,11 @@ class ProjectEditorActivity : Activity() {
                     setBackgroundColor(
                         parseColor(item.optString("backgroundColor"), Color.GRAY)
                     )
+                    minimumHeight = dp(2)
+                }
+
+                "Espaçador" -> View(this).apply {
+                    minimumHeight = dp(24)
                 }
 
                 else -> View(this)
@@ -297,7 +340,10 @@ class ProjectEditorActivity : Activity() {
             val height = dimension(item.optString("height"), false)
             val margin = item.optString("margin", "8").toIntOrNull() ?: 8
 
-            val wrapper = FrameLayout(this)
+            val wrapper = FrameLayout(this).apply {
+                if (type == "Espaçador") minimumHeight = dp(24)
+                if (type == "Divisor") minimumHeight = dp(2)
+            }
             val selected = selectedIndex == index
 
             wrapper.background = android.graphics.drawable.GradientDrawable().apply {
@@ -414,10 +460,12 @@ class ProjectEditorActivity : Activity() {
                 addField("Conteúdo", "text")
                 addField("Tamanho do texto", "textSize")
                 addField("Cor do texto (#RRGGBB)", "textColor")
+                addField("Cor de fundo (#RRGGBB ou #AARRGGBB)", "backgroundColor")
             }
 
             "Botão" -> {
                 addField("Texto do botão", "text")
+                addField("Tamanho do texto", "textSize")
                 addField("Cor do texto (#RRGGBB)", "textColor")
                 addField("Cor de fundo (#RRGGBB)", "backgroundColor")
             }
@@ -430,7 +478,11 @@ class ProjectEditorActivity : Activity() {
             "Campo de texto" -> {
                 addField("Dica", "hint")
                 addField("Texto inicial", "text")
-                addField("Tipo de entrada", "inputType")
+                addChoice(
+                    "Tipo de entrada",
+                    "inputType",
+                    arrayOf("Texto", "Número", "Telefone", "Email", "Senha")
+                )
             }
 
             "Checkbox", "Radio Button", "Switch" -> {
