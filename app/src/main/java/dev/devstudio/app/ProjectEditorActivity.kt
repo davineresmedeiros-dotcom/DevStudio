@@ -219,6 +219,9 @@ class ProjectEditorActivity : Activity() {
                     this.text = text
                     textSize = item.optString("textSize", "18").toFloatOrNull() ?: 18f
                     setTextColor(parseColor(item.optString("textColor"), Color.BLACK))
+                    setBackgroundColor(
+                        parseColor(item.optString("backgroundColor"), Color.TRANSPARENT)
+                    )
                 }
 
                 "Botão" -> Button(this).apply {
