@@ -295,7 +295,7 @@ class ProjectEditorActivity : Activity() {
             preview.addView(view, params)
 
             view.setOnClickListener {
-                editComponent(index)
+                showComponentActions(index)
             }
         }
     }
@@ -473,4 +473,93 @@ class ProjectEditorActivity : Activity() {
 
     private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density).toInt()
+
+    private fun duplicateComponent(index: Int) {
+        if (index !in 0 until components.length()) return
+
+        val original = components.getJSONObject(index)
+        val copy = JSONObject(original.toString())
+
+        val updated = JSONArray()
+        for (i in 0 until components.length()) {
+            updated.put(components.getJSONObject(i))
+            if (i == index) updated.put(copy)
+        }
+
+        replaceComponents(updated)
+    }
+
+    private fun deleteComponent(index: Int) {
+        if (index !in 0 until components.length()) return
+
+        val updated = JSONArray()
+        for (i in 0 until components.length()) {
+            if (i != index) updated.put(components.getJSONObject(i))
+        }
+
+        replaceComponents(updated)
+    }
+
+    private fun moveComponent(index: Int, direction: Int) {
+        val target = index + direction
+        if (index !in 0 until components.length()) return
+        if (target !in 0 until components.length()) return
+
+        val updated = JSONArray()
+        for (i in 0 until components.length()) {
+            when (i) {
+                index -> updated.put(components.getJSONObject(target))
+                target -> updated.put(components.getJSONObject(index))
+                else -> updated.put(components.getJSONObject(i))
+            }
+        }
+
+        replaceComponents(updated)
+    }
+
+    private fun replaceComponents(updated: JSONArray) {
+        while (components.length() > 0) {
+            components.remove(components.length() - 1)
+        }
+
+        for (i in 0 until updated.length()) {
+            components.put(updated.getJSONObject(i))
+        }
+
+        saveLayout()
+        renderPreview()
+    }
+
+    private fun showComponentActions(index: Int) {
+        val item = components.optJSONObject(index) ?: return
+
+        val actions = arrayOf(
+            "Editar propriedades",
+            "Duplicar",
+            "Mover para cima",
+            "Mover para baixo",
+            "Excluir"
+        )
+
+        AlertDialog.Builder(this)
+            .setTitle(item.optString("type"))
+            .setItems(actions) { _, choice ->
+                when (choice) {
+                    0 -> editComponent(index)
+                    1 -> duplicateComponent(index)
+                    2 -> moveComponent(index, -1)
+                    3 -> moveComponent(index, 1)
+                    4 -> AlertDialog.Builder(this)
+                        .setTitle("Excluir componente?")
+                        .setMessage("Essa ação não pode ser desfeita.")
+                        .setNegativeButton("Cancelar", null)
+                        .setPositiveButton("Excluir") { _, _ ->
+                            deleteComponent(index)
+                        }
+                        .show()
+                }
+            }
+            .show()
+    }
+
 }
