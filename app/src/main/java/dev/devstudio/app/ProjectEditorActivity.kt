@@ -341,7 +341,8 @@ class ProjectEditorActivity : Activity() {
 
             val width = dimension(item.optString("width"), true)
             val height = dimension(item.optString("height"), false)
-            val margin = item.optString("margin", "8").toIntOrNull() ?: 8
+            val margin = item.optString("margin", "8")
+                .trim().removeSuffix("dp").trim().toIntOrNull() ?: 8
 
             val wrapper = FrameLayout(this).apply {
                 if (type == "Espaçador") minimumHeight = dp(24)
@@ -607,13 +608,16 @@ class ProjectEditorActivity : Activity() {
     }
 
     private fun dimension(value: String, isWidth: Boolean): Int {
-        return when (value) {
-            "match" -> if (isWidth)
+        return when (value.trim().lowercase()) {
+            "match", "match_parent" -> if (isWidth)
                 LinearLayout.LayoutParams.MATCH_PARENT
-            else LinearLayout.LayoutParams.WRAP_CONTENT
+            else LinearLayout.LayoutParams.MATCH_PARENT
 
-            "wrap" -> LinearLayout.LayoutParams.WRAP_CONTENT
-            else -> dp(value.toIntOrNull() ?: 100)
+            "wrap", "wrap_content" -> LinearLayout.LayoutParams.WRAP_CONTENT
+            else -> {
+                val number = value.trim().removeSuffix("dp").trim().toIntOrNull()
+                dp(number ?: 100)
+            }
         }
     }
 
