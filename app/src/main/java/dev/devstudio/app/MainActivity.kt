@@ -129,12 +129,12 @@ class MainActivity : Activity() {
 
         val nameInput = EditText(this).apply {
             hint = "Nome do projeto"
-            singleLine = true
+            setSingleLine(true)
         }
 
         val packageInput = EditText(this).apply {
             hint = "com.example.meuapp"
-            singleLine = true
+            setSingleLine(true)
         }
 
         layout.addView(nameInput)
